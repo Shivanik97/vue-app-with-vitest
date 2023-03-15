@@ -18,6 +18,9 @@ import { RouterLink } from 'vue-router'
 import HelloWorld from './HelloWorld.vue';
 
 export default {
+    components: {
+        HelloWorld
+    },
     setup() {
 
 
