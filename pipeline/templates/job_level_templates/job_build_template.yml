@@ -1,0 +1,67 @@
+parameters:
+  - name: buildName
+    type: string
+  - name: projectFolder
+    type: string
+  - name: buildOutputFolder
+    type: string
+  - name: vmImageName
+    type: string
+
+jobs:
+  - job: 'build_test_${{ parameters.buildName }}'
+    displayName: 'build  and test ${{ parameters.buildName }}'
+    pool:
+      vmImage: ${{ parameters.vmImageName}}
+    steps:
+      - task: Npm@1
+        displayName: npm install
+        inputs:
+          workingDir: ${{parameters.projectFolder}}
+          verbose: true
+      - task: Npm@1
+        displayName: build
+        inputs:
+          command: custom
+          workingDir: ${{parameters.projectFolder}}
+          verbose: true
+          customCommand: run build
+
+      - task: Npm@1
+        displayName: "Run unit tests"
+        inputs:
+          command: custom
+          workingDir: ${{parameters.projectFolder}}
+          customCommand: run test:unit
+
+      - task: PublishCodeCoverageResults@1
+        displayName: 'Publish code coverage vue results'
+        condition: succeededOrFailed()
+        inputs:
+          codeCoverageTool: Cobertura
+          summaryFileLocation: '${{parameters.projectFolder}}/coverage/cobertura-coverage.xml'
+          reportDirectory: '${{parameters.projectFolder}}/coverage'
+          failIfCoverageEmpty: false
+
+      - task: PublishTestResults@2
+        displayName: 'Publish vue test results'
+        condition: succeededOrFailed()
+        inputs:
+          searchFolder:  '${{parameters.projectFolder}}/src/junit'   
+          testRunTitle: Vue
+          testResultsFormat: Junit
+          testResultsFiles: "**/TESTS-*.xml"
+
+      - task: CopyPublishBuildArtifacts@1
+        inputs:
+          CopyRoot: '${{parameters.buildOutputFolder}}'
+          Contents: '**'
+          ArtifactName: 'drop'
+          ArtifactType: 'Container'
+
+      - task: DownloadBuildArtifacts@1
+        inputs:
+          buildType: 'current'
+          downloadType: 'single'
+          artifactName: 'drop'
+          downloadPath: '${{parameters.buildOutputFolder}}'
